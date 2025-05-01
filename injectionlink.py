@@ -38,22 +38,22 @@ def inject_code(html_file):
             body_tag.append(tag)
 
     # Update internal links with "-fr"
-for tag in soup.find_all(['a', 'form', 'link', 'script', 'img', 'iframe']):
-    for attr in ['href', 'src', 'action']:
-        if tag.has_attr(attr):
-            url = tag[attr]
-            if (
-                url.endswith('.html') and
-                not url.startswith(('http://', 'https://', 'ftp://', 'mailto:', 'tel:', '/', '#'))
-            ):
-                name, ext = os.path.splitext(url)
-                tag[attr] = f"{name}-fr{ext}"
-            elif '.html' in url and '#' in url:
-                # Handle cases like "nok-terracottas.html#about-nok"
-                base_url, fragment = url.split('#', 1)
-                name, ext = os.path.splitext(base_url)
-                tag[attr] = f"{name}-fr{ext}#{fragment}"
-                
+    for tag in soup.find_all(['a', 'form', 'link', 'script', 'img', 'iframe']):
+        for attr in ['href', 'src', 'action']:
+            if tag.has_attr(attr):
+                url = tag[attr]
+                if (
+                    url.endswith('.html') and
+                    not url.startswith(('http://', 'https://', 'ftp://', 'mailto:', 'tel:', '/', '#'))
+                ):
+                    name, ext = os.path.splitext(url)
+                    tag[attr] = f"{name}-fr{ext}"
+                elif '.html' in url and '#' in url:
+                    # Handle cases like "nok-terracottas.html#about-nok"
+                    base_url, fragment = url.split('#', 1)
+                    name, ext = os.path.splitext(base_url)
+                    tag[attr] = f"{name}-fr{ext}#{fragment}"
+
     # Save the modified HTML back to a file
     output_file = html_file.replace('.html', '-translated.html')
     with open(output_file, 'w', encoding='utf-8') as f:
