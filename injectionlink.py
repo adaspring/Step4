@@ -2,42 +2,36 @@ import json
 from bs4 import BeautifulSoup
 import os
 
+def load_injection_file(filename):
+    if os.path.exists(filename):
+        with open(filename, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    else:
+        print(f"⚠️ Warning: {filename} not found. Skipping injection for this section.")
+        return []
+
 def inject_code(html_file):
     # Load the translated HTML
     with open(html_file, 'r', encoding='utf-8') as f:
         soup = BeautifulSoup(f, 'html.parser')
 
-    # Load the before_head.json and before_body.json
-    # If the JSON files don't exist, the script will continue without injecting any code
-    try:
-        with open("before_head.json", 'r', encoding='utf-8') as f:
-            head_code = json.load(f)
-    except FileNotFoundError:
-        head_code = []
+    # Load injection code or fallback to empty
+    head_code = load_injection_file("before_head.json")
+    body_code = load_injection_file("before_body.json")
 
-    try:
-        with open("before_body.json", 'r', encoding='utf-8') as f:
-            body_code = json.load(f)
-    except FileNotFoundError:
-        body_code = []
-
-    # Inject code into <head>
-    head_tag = soup.head
-    if head_tag:
+    # Inject into <head>
+    if soup.head:
         for code in head_code:
-            tag = soup.new_tag('script')
-            tag.string = code
-            head_tag.append(tag)
+            injected = BeautifulSoup(code, 'html.parser')
+            soup.head.append(injected)
 
-    # Inject code before </body>
-    body_tag = soup.body
-    if body_tag:
+    # Inject before </body>
+    if soup.body:
         for code in body_code:
-            tag = soup.new_tag('script')
-            tag.string = code
-            body_tag.append(tag)
+            injected = BeautifulSoup(code, 'html.parser')
+            soup.body.append(injected)
 
-    # Update internal links with "-fr"
+    # Rewrite internal links (including those with #anchors)
     for tag in soup.find_all(['a', 'form', 'link', 'script', 'img', 'iframe']):
         for attr in ['href', 'src', 'action']:
             if tag.has_attr(attr):
@@ -48,18 +42,22 @@ def inject_code(html_file):
                 ):
                     name, ext = os.path.splitext(url)
                     tag[attr] = f"{name}-fr{ext}"
-                elif '.html' in url and '#' in url:
-                    # Handle cases like "nok-terracottas.html#about-nok"
-                    base_url, fragment = url.split('#', 1)
-                    name, ext = os.path.splitext(base_url)
+                elif '.html#' in url and not url.startswith(('http://', 'https://', 'ftp://', 'mailto:', 'tel:', '/', '#')):
+                    base, fragment = url.split('#', 1)
+                    name, ext = os.path.splitext(base)
                     tag[attr] = f"{name}-fr{ext}#{fragment}"
 
-    # Save the modified HTML back to a file
-    output_file = html_file.replace('.html', '-translated.html')
+    # Save with originalname-fr.html
+    base_name = os.path.splitext(os.path.basename(html_file))[0]
+    if base_name.startswith("translated_output"):
+        base_name = "index"
+    output_file = f"{base_name}-fr.html"
+
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(str(soup))
 
     print(f"✅ Step 4 complete: injected code and updated internal links. Saved as {output_file}.")
 
-# Example usage (for testing purposes):
-# inject_code('translated_output.html')
+# Run if script is executed directly
+if __name__ == "__main__":
+    inject_code("translated_output.html")
