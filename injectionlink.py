@@ -2,31 +2,36 @@ import json
 from bs4 import BeautifulSoup
 import os
 
+def load_injection_file(filename):
+    if os.path.exists(filename):
+        with open(filename, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    else:
+        print(f"⚠️ Warning: {filename} not found. Skipping injection for this section.")
+        return []
+
 def inject_code(html_file):
     # Load the translated HTML
     with open(html_file, 'r', encoding='utf-8') as f:
         soup = BeautifulSoup(f, 'html.parser')
 
-    # Load the code to inject
-    with open("before_head.json", 'r', encoding='utf-8') as f:
-        head_code = json.load(f)
+    # Load injection code or fallback to empty
+    head_code = load_injection_file("before_head.json")
+    body_code = load_injection_file("before_body.json")
 
-    with open("before_body.json", 'r', encoding='utf-8') as f:
-        body_code = json.load(f)
-
-    # Inject code into <head>
+    # Inject into <head>
     if soup.head:
         for code in head_code:
             injected = BeautifulSoup(code, 'html.parser')
             soup.head.append(injected)
 
-    # Inject code before </body>
+    # Inject before </body>
     if soup.body:
         for code in body_code:
             injected = BeautifulSoup(code, 'html.parser')
             soup.body.append(injected)
 
-    # Update internal links (no external or anchored references)
+    # Rewrite internal links
     for tag in soup.find_all(['a', 'form', 'link', 'script', 'img', 'iframe']):
         for attr in ['href', 'src', 'action']:
             if tag.has_attr(attr):
@@ -38,7 +43,7 @@ def inject_code(html_file):
                     name, ext = os.path.splitext(url)
                     tag[attr] = f"{name}-fr{ext}"
 
-    # Save to originalname-fr.html
+    # Save with originalname-fr.html
     base_name = os.path.splitext(os.path.basename(html_file))[0]
     if base_name.startswith("translated_output"):
         base_name = "index"
@@ -49,6 +54,6 @@ def inject_code(html_file):
 
     print(f"✅ Step 4 complete: injected code and updated internal links. Saved as {output_file}.")
 
-# Run if script is called directly (GitHub Actions)
+# Run if script is executed directly
 if __name__ == "__main__":
     inject_code("translated_output.html")
